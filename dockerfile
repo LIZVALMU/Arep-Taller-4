@@ -1,27 +1,42 @@
-# ---- Build Stage ----
-FROM maven:3.9.6-eclipse-temurin-21 AS build
+##########
+# Dockerfile multi-stage para construir y ejecutar la app
+# - Build con Maven + Temurin 17 (alineado con pom.xml)
+# - Runtime con JRE 17 minimal
+# - Copia de recursos estáticos a /static para que el handler los sirva
+##########
+
+# ---------- Build stage ----------
+FROM maven:3.9.8-eclipse-temurin-17 AS build
 WORKDIR /app
+
+# Pre-descarga dependencias para aprovechar cache
 COPY pom.xml .
-COPY src ./src
-# Compila y genera el JAR sombreado, luego limpia caché de Maven
-RUN mvn -q clean package shade:shade -DskipTests && mvn dependency:purge-local-repository -DactTransitively=false -DreResolve=false
+RUN mvn -q -DskipTests dependency:go-offline
 
-# ---- Run Stage ----
-FROM eclipse-temurin:21-jdk
+# Copia el código fuente y empaqueta
+COPY src ./src
+RUN mvn -q -DskipTests package
+
+# ---------- Runtime stage ----------
+FROM eclipse-temurin:17-jre
 WORKDIR /app
 
-# Puerto configurable
-ARG PORT=35000
-ENV PORT=${PORT}
-EXPOSE ${PORT}
+# Copiar recursos estáticos al filesystem para que SimpleStaticFileHandler funcione dentro del contenedor
+# HttpServerApplication configura staticfiles("/static"), y el handler usa rutas de filesystem.
+COPY --from=build /app/src/main/resources/static /static
 
-# Copia el JAR compilado desde la etapa de construcción
-COPY --from=build /app/target/HttpServer-1.0-SNAPSHOT.jar app.jar
+# Copiar el JAR generado (flexible ante cambios de versión)
+ARG JAR_FILE=/app/target/*.jar
+COPY --from=build ${JAR_FILE} /app/app.jar
 
-# Da permisos al usuario no root
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* \
-	&& adduser --disabled-password --gecos '' appuser && chown -R appuser:appuser /app
+# Crear usuario no root (sin paquetes adicionales)
+RUN useradd -m -r -s /usr/sbin/nologin appuser \
+    && chown -R appuser:appuser /app /static || true
 USER appuser
 
-# Ejecuta la aplicación
-CMD ["java", "-jar", "app.jar"]
+# Exponer puerto por defecto (la app usa 35000 si no se pasan argumentos)
+EXPOSE 35000
+ENV PORT=35000
+
+# Ejecutar la aplicación (usa el puerto por defecto si no se pasan args)
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

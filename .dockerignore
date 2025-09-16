@@ -1,0 +1,23 @@
+# Archivos y carpetas a ignorar en el contexto de Docker
+
+# Maven
+/target
+!.mvn
+.mvn/
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node/npm (por si se agregan assets)
+node_modules
+npm-debug.log

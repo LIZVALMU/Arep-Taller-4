@@ -79,6 +79,35 @@ java -cp target/classes escuela.edu.co.HttpServer
 java -jar target/HttpServer-1.0-SNAPSHOT.jar
 ```
 
+### Docker
+
+Puedes construir y ejecutar la aplicación en un contenedor Docker usando el `Dockerfile` multi-stage incluido.
+
+1) Construir la imagen:
+
+```powershell
+docker build -t arep-taller-4:latest .
+```
+
+2) Ejecutar el contenedor (puerto por defecto 35000):
+
+```powershell
+docker run --rm -p 35000:35000 arep-taller-4:latest
+```
+
+3) Ejecutar en otro puerto (la app acepta el puerto como primer argumento):
+
+```powershell
+docker run --rm -p 8080:8080 arep-taller-4:latest 8080
+```
+
+4) Probar:
+
+```powershell
+curl http://localhost:35000/
+curl "http://localhost:35000/app/hello?name=Alison"
+```
+
 ### Acceso a la Aplicación
 
 Una vez iniciado el servidor, accede en tu navegador:
